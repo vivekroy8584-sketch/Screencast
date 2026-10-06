@@ -1,0 +1,20 @@
+<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ScreenCast</title>
+<style>html,body{margin:0;height:100%;background:#000;color:#fff;font:20px sans-serif}
+video{width:100%;height:100%;object-fit:contain}#s{position:fixed;top:12px;left:16px;opacity:.7}</style>
+<div id="s">Connecting…</div><video id="v" autoplay muted playsinline></video>
+<script>
+const v=document.getElementById('v'),s=document.getElementById('s');
+const ws=new WebSocket('ws://'+location.host+'/');
+const pc=new RTCPeerConnection({iceServers:[]});
+pc.ontrack=e=>{v.srcObject=e.streams[0];s.style.display='none'};
+pc.onicecandidate=e=>e.candidate&&ws.send(JSON.stringify({type:'candidate',
+  candidate:e.candidate.candidate,sdpMid:e.candidate.sdpMid,sdpMLineIndex:e.candidate.sdpMLineIndex}));
+ws.onmessage=async m=>{const j=JSON.parse(m.data);
+  if(j.type==='offer'){await pc.setRemoteDescription({type:'offer',sdp:j.sdp});
+    const a=await pc.createAnswer();await pc.setLocalDescription(a);
+    ws.send(JSON.stringify({type:'answer',sdp:a.sdp}));}
+  else if(j.type==='candidate')pc.addIceCandidate({candidate:j.candidate,sdpMid:j.sdpMid,sdpMLineIndex:j.sdpMLineIndex});};
+ws.onclose=()=>{s.style.display='';s.textContent='Disconnected — reload to retry'};
+v.onclick=()=>v.requestFullscreen&&v.requestFullscreen();
+</script>
